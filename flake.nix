@@ -1,14 +1,16 @@
 {
   inputs = {
     flake-utils.url = "github:numtide/flake-utils";
-    rust-overlay.url = "github:oxalica/rust-overlay";
+    cargo2nix.url = "github:cargo2nix/cargo2nix";
+    rust-overlay.follows = "cargo2nix/rust-overlay";
   };
-  outputs = { self, nixpkgs, flake-utils, rust-overlay }:
+  outputs = { self, nixpkgs, flake-utils, cargo2nix, rust-overlay }:
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = import nixpkgs {
           inherit system;
           overlays = [
+            cargo2nix.overlays.default
             rust-overlay.overlays.default
           ];
         };
@@ -29,8 +31,21 @@
                   "rust-analyzer"
                 ];
               })
+              cargo2nix.packages.${system}.default
             ];
           };
+
+        packages = rec {
+          columnize =
+            let
+              rustPkgs = pkgs.rustBuilder.makePackageSet {
+                inherit rustVersion;
+                packageFun = import ./Cargo.nix;
+              };
+            in
+              rustPkgs.workspace.columnize {};
+          default = columnize;
+        };
       }
     );
 }
